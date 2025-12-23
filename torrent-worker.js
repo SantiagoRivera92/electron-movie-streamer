@@ -8,6 +8,10 @@ async function start() {
   const downloadPath = process.argv[4]
 
   client.add(magnet, { path: downloadPath }, (torrent) => {
+    if (!torrent.files || torrent.files.length === 0) {
+      console.error("[torrent-worker] No files found in torrent yet.");
+      return;
+    }
     const server = http.createServer((req, res) => {
       // Find the largest file (the movie)
       const file = torrent.files.reduce((a, b) => (a.length > b.length ? a : b))

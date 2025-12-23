@@ -173,7 +173,7 @@ ipcMain.handle("start-stream", async (event, { hash, title, quality, useSubtitle
     await cleanup()
 
     // 1. Setup temporary directory for movie chunks
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "movie-stream-"))
+    tempDir = app.getPath('downloads') + `/movie_stream_${Date.now()}`
 
     // 2. Search for subtitles if requested
     let subtitleUrl = null
@@ -299,15 +299,15 @@ async function searchSubtitlesInternal(data) {
       console.log("[Subtitle Internal] Downloaded to:", subtitlePath)
       console.log("[Subtitle Internal] URL:", subtitleUrl)
 
-      mainWindow.webContents.send("subtitle-progress", "✓ Subtitle downloaded")
+      mainWindow.webContents.send("subtitle-progress", "Subtitle downloaded")
       return { success: true, path: subtitleUrl }
     } else {
-      mainWindow.webContents.send("subtitle-progress", "✗ No subtitles found")
+      mainWindow.webContents.send("subtitle-progress", "No subtitles found")
       return { success: false }
     }
   } catch (error) {
     console.error("Subtitle error:", error)
-    mainWindow.webContents.send("subtitle-progress", "✗ Subtitle download failed")
+    mainWindow.webContents.send("subtitle-progress", "Subtitle download failed")
     return { success: false }
   }
 }

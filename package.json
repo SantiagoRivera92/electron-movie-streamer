@@ -1,6 +1,6 @@
 {
   "name": "movie-streamer",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Cross-platform movie streaming application",
   "main": "main.js",
   "scripts": {
@@ -85,7 +85,9 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Movie Streamer"
     }
   }
 }

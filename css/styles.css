@@ -567,7 +567,14 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  position: relative;
   background: #000000;
+  cursor: default;
+  transition: cursor 0.3s;
+}
+
+.video-container.user-idle {
+  cursor: none;
 }
 
 .video-player {
@@ -583,7 +590,6 @@ body {
   top: 20px;
   right: 20px;
   z-index: 100;
-  /* moved button from bottom-left to top-right to avoid overlapping video controls */
 }
 
 .player-btn {
@@ -612,4 +618,15 @@ body {
   max-width: 1200px;
   text-align: center;
   z-index: 50;
+}
+
+/* Remove the focus outline for the video element specifically */
+video:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* If you have a container around the video, apply it there too */
+.video-container:focus {
+    outline: none !important;
 }
