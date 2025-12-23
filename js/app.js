@@ -1,3 +1,28 @@
+// MPV error page
+const mpvErrorPage = document.getElementById("mpvErrorPage");
+
+// Listen for mpv-error event from main process
+if (window.electronAPI && window.electronAPI.onStreamProgress) {
+  window.electronAPI.onMPVError?.((data) => {
+    showMPVErrorPage(data?.message, data?.url);
+  });
+}
+
+// Fallback for direct IPC
+if (window.electron && window.electron.ipcRenderer) {
+  window.electron.ipcRenderer.on('mpv-error', (event, data) => {
+    showMPVErrorPage(data?.message, data?.url);
+  });
+}
+
+function showMPVErrorPage(message, url) {
+  homePage.style.display = "none";
+  resultsPage.style.display = "none";
+  profilePage.style.display = "none";
+  mpvErrorPage.style.display = "flex";
+  const errorMsg = mpvErrorPage.querySelector('.error-message');
+  if (errorMsg && message) errorMsg.innerHTML = message + (url ? `<br><a href='${url}' target='_blank'>Download MPV</a>` : '');
+}
 let movies = []
 let currentPage = 1;
 let totalPages = 1;

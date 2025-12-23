@@ -25,7 +25,7 @@ function createWindow() {
   });
 
   mainWindow.loadFile('index.html');
-  
+
   mainWindow.on('closed', () => {
     cleanup();
     mainWindow = null;
@@ -71,10 +71,10 @@ ipcMain.handle('search-movies', async (event, params) => {
 ipcMain.handle('search-subtitles', async (event, { title, year, imdbId }) => {
   try {
     mainWindow.webContents.send('subtitle-progress', 'Searching for subtitles...');
-    
+
     const searchQuery = imdbId || `${title} ${year}`;
     const url = `https://rest.opensubtitles.org/search/query-${encodeURIComponent(searchQuery)}/sublanguageid-eng`;
-    
+
     const response = await axios.get(url, {
       headers: {
         'User-Agent': 'MovieStreamer v1.0'
@@ -83,26 +83,26 @@ ipcMain.handle('search-subtitles', async (event, { title, year, imdbId }) => {
     });
 
     if (response.data && response.data.length > 0) {
-      const subtitle = response.data.sort((a, b) => 
+      const subtitle = response.data.sort((a, b) =>
         parseFloat(b.SubRating || 0) - parseFloat(a.SubRating || 0)
       )[0];
-      
+
       mainWindow.webContents.send('subtitle-progress', 'Downloading subtitle...');
-      
+
       const subResponse = await axios.get(subtitle.SubDownloadLink, {
         responseType: 'arraybuffer',
         timeout: 10000
       });
-      
+
       let subContent = subResponse.data;
       if (subtitle.SubDownloadLink.endsWith('.gz')) {
         const zlib = require('zlib');
         subContent = zlib.gunzipSync(Buffer.from(subContent));
       }
-      
+
       subtitlePath = path.join(os.tmpdir(), `subtitle_${Date.now()}.srt`);
       await fs.writeFile(subtitlePath, subContent);
-      
+
       mainWindow.webContents.send('subtitle-progress', 'Subtitle downloaded successfully');
       return { success: true, path: subtitlePath };
     } else {
@@ -119,7 +119,7 @@ ipcMain.handle('search-subtitles', async (event, { title, year, imdbId }) => {
 ipcMain.handle('start-stream', async (event, { hash, title, quality, useSubtitles, movieData }) => {
   try {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'movie-stream-'));
-    
+
     if (useSubtitles && movieData) {
       await ipcMain.emit('search-subtitles-internal', event, {
         title: movieData.title,
@@ -127,10 +127,10 @@ ipcMain.handle('start-stream', async (event, { hash, title, quality, useSubtitle
         imdbId: movieData.imdb_code
       });
     }
-    
+
     const magnet = `magnet:?xt=urn:btih:${hash}&dn=${encodeURIComponent(title)}`;
     const port = 8080;
-    
+
     webtorrentProcess = spawn('webtorrent', [
       magnet,
       '--port', port.toString(),
@@ -138,7 +138,7 @@ ipcMain.handle('start-stream', async (event, { hash, title, quality, useSubtitle
     ]);
 
     let streamUrl = null;
-    
+
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         cleanup();
@@ -148,15 +148,15 @@ ipcMain.handle('start-stream', async (event, { hash, title, quality, useSubtitle
       webtorrentProcess.stdout.on('data', (data) => {
         const output = data.toString();
         console.log(output);
-        
+
         mainWindow.webContents.send('stream-progress', output);
-        
+
         if (output.includes('Server running at:')) {
           const match = output.match(/http:\/\/localhost:\d+\/\S+/);
           if (match) {
             streamUrl = match[0];
             clearTimeout(timeout);
-            
+
             // Wait for peers
             setTimeout(() => {
               startMPV(streamUrl, title, useSubtitles);
@@ -188,10 +188,10 @@ ipcMain.handle('start-stream', async (event, { hash, title, quality, useSubtitle
 ipcMain.on('search-subtitles-internal', async (event, data) => {
   try {
     mainWindow.webContents.send('subtitle-progress', 'Searching for subtitles...');
-    
+
     const searchQuery = data.imdbId || `${data.title} ${data.year}`;
     const url = `https://rest.opensubtitles.org/search/query-${encodeURIComponent(searchQuery)}/sublanguageid-eng`;
-    
+
     const response = await axios.get(url, {
       headers: {
         'User-Agent': 'MovieStreamer v1.0'
@@ -200,26 +200,26 @@ ipcMain.on('search-subtitles-internal', async (event, data) => {
     });
 
     if (response.data && response.data.length > 0) {
-      const subtitle = response.data.sort((a, b) => 
+      const subtitle = response.data.sort((a, b) =>
         parseFloat(b.SubRating || 0) - parseFloat(a.SubRating || 0)
       )[0];
-      
+
       mainWindow.webContents.send('subtitle-progress', 'Downloading subtitle...');
-      
+
       const subResponse = await axios.get(subtitle.SubDownloadLink, {
         responseType: 'arraybuffer',
         timeout: 10000
       });
-      
+
       let subContent = subResponse.data;
       if (subtitle.SubDownloadLink.endsWith('.gz')) {
         const zlib = require('zlib');
         subContent = zlib.gunzipSync(Buffer.from(subContent));
       }
-      
+
       subtitlePath = path.join(os.tmpdir(), `subtitle_${Date.now()}.srt`);
       await fs.writeFile(subtitlePath, subContent);
-      
+
       mainWindow.webContents.send('subtitle-progress', '✓ Subtitle downloaded');
     } else {
       mainWindow.webContents.send('subtitle-progress', '✗ No subtitles found');
@@ -251,20 +251,55 @@ function startMPV(url, title, useSubtitles) {
     mpvArgs.push(`--sub-file=${subtitlePath}`);
     mpvArgs.push('--sub-auto=fuzzy');
   }
+  try {
+    mpvProcess = spawn('mpv', mpvArgs);
+    mpvProcess.on('error', (err) => {
+      console.error('MPV spawn error:', err);
+      if (err.code == 'ENOENT' && err.errno == -2) {
+        mainWindow.webContents.send('mpv-error', {
+          message: 'MPV player not found. MovieStreamer requires MPV to play videos. Please download and install MPV from https://mpv.io/installation/.',
+          url: 'https://mpv.io/installation/'
+        });
+      }
+    });
+    mpvProcess.on('close', (code) => {
+      console.log(`MPV exited with code ${code}`);
+      cleanup();
+      mainWindow.webContents.send('playback-ended');
+    });
+    mpvProcess.stderr.on('data', (data) => {
+      console.log('MPV:', data.toString());
+    });
+  } catch (err) {
+    console.error('Failed to spawn MPV:', err);
+    mainWindow.webContents.send('mpv-error', {
+      message: 'MPV player not found. MovieStreamer requires MPV to play videos. Please download and install MPV from https://mpv.io/installation/.',
+      url: 'https://mpv.io/installation/'
+    });
+    return;
+  }
 
-  mpvProcess = spawn('mpv', mpvArgs);
+  try {
+    mpvProcess = spawn('mpv', mpvArgs);
+    mpvProcess.on('error', (err) => {
+      console.error('MPV spawn error:', err);
+    });
 
-  mpvProcess.on('close', (code) => {
-    console.log(`MPV exited with code ${code}`);
-    cleanup();
-    mainWindow.webContents.send('playback-ended');
-  });
+    mpvProcess.on('close', (code) => {
+      console.log(`MPV exited with code ${code}`);
+      cleanup();
+      mainWindow.webContents.send('playback-ended');
+    });
 
-  mpvProcess.stderr.on('data', (data) => {
-    console.log('MPV:', data.toString());
-  });
+    mpvProcess.stderr.on('data', (data) => {
+      console.log('MPV:', data.toString());
+    });
+  } catch (err) {
+    console.error('Failed to spawn MPV:', err);
+    mainWindow.webContents.send('mpv-error', 'MPV player not found. Please install MPV to play movies.');
+    return;
+  }
 }
-
 ipcMain.handle('stop-stream', async () => {
   cleanup();
   return { success: true };
@@ -275,12 +310,12 @@ async function cleanup() {
     webtorrentProcess.kill();
     webtorrentProcess = null;
   }
-  
+
   if (mpvProcess) {
     mpvProcess.kill();
     mpvProcess = null;
   }
-  
+
   if (tempDir) {
     try {
       await rimraf(tempDir);
@@ -290,7 +325,7 @@ async function cleanup() {
     }
     tempDir = null;
   }
-  
+
   if (subtitlePath) {
     try {
       await fs.unlink(subtitlePath);
@@ -304,4 +339,9 @@ async function cleanup() {
 
 app.on('before-quit', () => {
   cleanup();
+});
+
+ipcMain.on('open-mpv-download', () => {
+  const { shell } = require('electron');
+  shell.openExternal('https://mpv.io/installation/');
 });
