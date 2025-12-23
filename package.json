@@ -1,0 +1,68 @@
+{
+  "name": "movie-streamer",
+  "version": "1.0.1",
+  "description": "Cross-platform movie streaming application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist-all": "electron-builder --win --linux"
+  },
+  "keywords": [
+    "electron",
+    "movie",
+    "streaming",
+    "torrent"
+  ],
+  "author": {
+    "name": "Santi Rivera",
+    "email": "santirivera92@gmail.com"
+  },
+  "homepage": "https://github.com/SantiagoRivera92/electron-movie-streamer",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^39.2.7",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "rimraf": "^5.0.5"
+  },
+  "build": {
+    "appId": "com.moviestreamer.app",
+    "productName": "MovieStreamer",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "icon.png",
+      "css/**",
+      "js/**"
+    ],
+    "win": {
+      "icon": "icon.png",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "icon": "icon.png",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "AudioVideo",
+      "executableName": "movie-streamer",
+      "artifactName": "${name}_${version}_${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

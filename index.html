@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MovieStreamer</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Home Page -->
+  <div id="homePage" class="home-page">
+    <div class="app-logo">MovieStreamer</div>
+    <div class="app-subtitle">Search and stream movies instantly</div>
+    
+    <div class="search-container">
+      <div class="search-wrapper">
+        <input type="text" class="search-input" id="homeSearchInput" placeholder="Search for movies..." />
+        <button class="search-btn" id="homeSearchBtn">Search</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search Results Page -->
+  <div id="resultsPage" class="results-page">
+    <div class="header">
+      <div class="header-search">
+        <button class="back-btn" id="backBtn">Back</button>
+        <div class="search-wrapper">
+          <input type="text" class="search-input" id="resultsSearchInput" placeholder="Search for movies..." />
+          <button class="search-btn" id="resultsSearchBtn">Search</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="content">
+      <h1 class="results-title" id="resultsTitle">Search Results</h1>
+      <div id="moviesGrid" class="movies-grid"></div>
+    </div>
+  </div>
+
+  <!-- Movie Profile Page -->
+  <div id="profilePage" class="profile-page">
+    <div class="header">
+      <div class="header-search">
+        <button class="back-btn" id="profileBackBtn">Back to Results</button>
+      </div>
+    </div>
+
+    <div class="profile-hero">
+      <div class="profile-content">
+        <img id="profilePoster" class="profile-poster" src="/placeholder.svg" alt="Movie Poster" />
+        <div class="profile-info">
+          <h1 id="profileTitle" class="profile-title"></h1>
+          <div class="profile-meta">
+            <span id="profileYear"></span>
+            <span>•</span>
+            <span class="rating" id="profileRating"></span>
+            <span>•</span>
+            <span id="profileRuntime"></span>
+          </div>
+          <p id="profileDescription" class="profile-description"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="profile-body">
+      <div id="imdbInfo" class="imdb-info hidden">
+        <div class="section-title">About</div>
+        <div id="imdbGenres" class="imdb-genres"></div>
+      </div>
+
+      <div class="section-title">Select Quality</div>
+      <div id="qualityOptions" class="quality-options"></div>
+
+      <div class="controls">
+        <div class="subtitle-toggle" id="subtitleToggle">
+          <div class="toggle-switch" id="toggleSwitch">
+            <div class="toggle-knob"></div>
+          </div>
+          <div class="subtitle-label">Download Subtitles</div>
+        </div>
+        <div id="subtitleStatus" class="subtitle-status"></div>
+
+        <button class="play-btn" id="playBtn">Play Movie</button>
+        <button class="play-btn stop-btn hidden" id="stopBtn">Stop</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
