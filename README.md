@@ -11,10 +11,6 @@ MovieStreamer is a cross-platform desktop application for searching and streamin
 - Cross-platform: Windows, Linux (.deb, .AppImage)
 - Simple, modern user interface
 
-## Screenshots
-
-<!-- Add screenshots here if available -->
-
 ## Installation
 
 ### Download
@@ -24,14 +20,28 @@ MovieStreamer is a cross-platform desktop application for searching and streamin
 1. Download the latest `.deb` file from the releases page.
 2. Install via terminal:
    ```bash
-   sudo dpkg -i movie-streamer_*.deb
+   sudo apt install ./movie-streamer_*.deb
+   ```
+   This will automatically handle dependencies. If you prefer, you can still use `dpkg`, but `apt` is recommended.
+
+### Linux (.AppImage)
+1. Download the latest `.AppImage` file from the releases page.
+2. Make the file executable:
+   ```bash
+   chmod +x movie-streamer-*.AppImage
+   ```
+3. Run the AppImage:
+   ```bash
+   ./movie-streamer-*.AppImage
    ```
 
 ### Windows
+
 - Download and run the installer from the releases page.
 
 ### macOS
-- I don't own a Mac. If you do and you want to contribute, feel free to build the app and I'll happily put it in the Releases section!
+
+I don't own a Mac, so I can't compile or sign the app for macOS. Apple requires a Mac to build and sign macOS applications due to their platform restrictions and code signing requirements. If you have a Mac and want to contribute, feel free to build the app and I'll happily put it in the Releases section!
 
 ## Development
 
