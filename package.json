@@ -1,6 +1,6 @@
 {
   "name": "movie-streamer",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Cross-platform movie streaming application",
   "main": "main.js",
   "scripts": {
@@ -27,7 +27,8 @@
   },
   "dependencies": {
     "axios": "^1.6.2",
-    "rimraf": "^5.0.5"
+    "rimraf": "^5.0.5",
+    "webtorrent": "^2.8.5"
   },
   "build": {
     "appId": "com.moviestreamer.app",
@@ -37,12 +38,15 @@
     },
     "files": [
       "main.js",
+      "torrent-worker.js",
       "preload.js",
       "index.html",
       "icon.png",
       "css/**",
       "js/**",
-      "img/**"
+      "img/**",
+      "node_modules/",
+      "package.json"
     ],
     "win": {
       "icon": "icon.png",
@@ -56,6 +60,9 @@
       "target": [
         "AppImage",
         "deb"
+      ],
+      "executableArgs": [
+        "--no-sandbox"
       ],
       "category": "AudioVideo",
       "executableName": "movie-streamer",

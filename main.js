@@ -5,6 +5,7 @@ const axios = require('axios');
 const fs = require('fs').promises;
 const os = require('os');
 const { rimraf } = require('rimraf');
+const fsSync = require('fs');
 
 let mainWindow;
 let webtorrentProcess = null;
@@ -118,8 +119,10 @@ ipcMain.handle('search-subtitles', async (event, { title, year, imdbId }) => {
 
 ipcMain.handle('start-stream', async (event, { hash, title, quality, useSubtitles, movieData }) => {
   try {
+    // 1. Setup temporary directory for movie chunks
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'movie-stream-'));
 
+    // 2. Search for subtitles if requested
     if (useSubtitles && movieData) {
       await ipcMain.emit('search-subtitles-internal', event, {
         title: movieData.title,
@@ -131,33 +134,47 @@ ipcMain.handle('start-stream', async (event, { hash, title, quality, useSubtitle
     const magnet = `magnet:?xt=urn:btih:${hash}&dn=${encodeURIComponent(title)}`;
     const port = 8080;
 
-    webtorrentProcess = spawn('webtorrent', [
+    // 3. Define the path to your custom worker script
+    // This script lives in your app's root directory
+    const nodeBin = process.execPath;
+    const workerPath = path.join(__dirname, 'torrent-worker.js');
+
+    // 4. Spawn the worker using Electron-as-Node mode
+    webtorrentProcess = spawn(nodeBin, [
+      workerPath,
       magnet,
-      '--port', port.toString(),
-      '--out', tempDir
-    ]);
+      port.toString(),
+      tempDir
+    ], {
+      env: {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: '1' // Ensures it runs as a pure Node process
+      }
+    });
 
     let streamUrl = null;
 
     return new Promise((resolve, reject) => {
+      // 60-second timeout if no peers/server start
       const timeout = setTimeout(() => {
         cleanup();
-        reject(new Error('Timeout waiting for stream'));
+        reject(new Error('Timeout: Could not find enough peers to start the stream.'));
       }, 60000);
 
       webtorrentProcess.stdout.on('data', (data) => {
         const output = data.toString();
-        console.log(output);
-
+        
+        // Forward progress to the UI
         mainWindow.webContents.send('stream-progress', output);
 
+        // Detect when the internal WebTorrent server is ready
         if (output.includes('Server running at:')) {
           const match = output.match(/http:\/\/localhost:\d+\/\S+/);
           if (match) {
             streamUrl = match[0];
             clearTimeout(timeout);
-
-            // Wait for peers
+            
+            // Short delay to allow initial buffering
             setTimeout(() => {
               startMPV(streamUrl, title, useSubtitles);
               resolve({ success: true, url: streamUrl });
@@ -167,19 +184,27 @@ ipcMain.handle('start-stream', async (event, { hash, title, quality, useSubtitle
       });
 
       webtorrentProcess.stderr.on('data', (data) => {
-        console.error('WebTorrent error:', data.toString());
-        mainWindow.webContents.send('stream-progress', data.toString());
+        const errOutput = data.toString();
+        console.error('[Worker STDERR]', errOutput);
+        mainWindow.webContents.send('stream-progress', `[Log] ${errOutput}`);
       });
 
-      webtorrentProcess.on('close', (code) => {
-        console.log(`WebTorrent exited with code ${code}`);
+      webtorrentProcess.on('error', (err) => {
+        clearTimeout(timeout);
+        console.error('Failed to spawn worker:', err);
+        reject(new Error(`Worker execution failed: ${err.message}`));
+      });
+
+      webtorrentProcess.on('close', (code, signal) => {
+        console.log(`[Worker CLOSE] code: ${code}, signal: ${signal}`);
         if (!streamUrl) {
           clearTimeout(timeout);
-          reject(new Error('WebTorrent failed to start'));
+          reject(new Error('Stream worker exited unexpectedly.'));
         }
       });
     });
   } catch (error) {
+    console.error('Stream Start Error:', error);
     cleanup();
     throw error;
   }
@@ -262,6 +287,7 @@ function startMPV(url, title, useSubtitles) {
         });
       }
     });
+    mainWindow.webContents.send('mpv-spawned');
     mpvProcess.on('close', (code) => {
       console.log(`MPV exited with code ${code}`);
       cleanup();
@@ -276,27 +302,6 @@ function startMPV(url, title, useSubtitles) {
       message: 'MPV player not found. MovieStreamer requires MPV to play videos. Please download and install MPV from https://mpv.io/installation/.',
       url: 'https://mpv.io/installation/'
     });
-    return;
-  }
-
-  try {
-    mpvProcess = spawn('mpv', mpvArgs);
-    mpvProcess.on('error', (err) => {
-      console.error('MPV spawn error:', err);
-    });
-
-    mpvProcess.on('close', (code) => {
-      console.log(`MPV exited with code ${code}`);
-      cleanup();
-      mainWindow.webContents.send('playback-ended');
-    });
-
-    mpvProcess.stderr.on('data', (data) => {
-      console.log('MPV:', data.toString());
-    });
-  } catch (err) {
-    console.error('Failed to spawn MPV:', err);
-    mainWindow.webContents.send('mpv-error', 'MPV player not found. Please install MPV to play movies.');
     return;
   }
 }

@@ -8,5 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onStreamProgress: (callback) => ipcRenderer.on('stream-progress', (event, data) => callback(data)),
   onSubtitleProgress: (callback) => ipcRenderer.on('subtitle-progress', (event, data) => callback(data)),
   onPlaybackEnded: (callback) => ipcRenderer.on('playback-ended', () => callback()),
-  onMPVError: (callback) => ipcRenderer.on('mpv-error', (event, data) => callback(data))
+  onMPVError: (callback) => ipcRenderer.on('mpv-error', (event, data) => callback(data)),
+  onWebTorrentError: (callback) => ipcRenderer.on('webtorrent-error', (event, data) => callback(data)),
+  onMPVSpawned: (callback) => ipcRenderer.on('mpv-spawned', () => callback())
 });

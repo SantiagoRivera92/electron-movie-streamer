@@ -1,29 +1,18 @@
-  <!-- MPV Error Page -->
-  <div id="mpvErrorPage" class="error-page" style="display:none;">
-    <div class="error-content">
-      <h1 class="error-title">MPV Player Not Found</h1>
-      <p class="error-message">
-        MovieStreamer requires <b>MPV</b> to play videos.<br>
-        Please download and install MPV from <a href="https://mpv.io/installation/" target="_blank">mpv.io/installation</a>.<br>
-        <br>
-        <span style="color:#b3b3b3;">After installing, restart MovieStreamer.</span>
-      </p>
-    </div>
-  </div>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MovieStreamer</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
+
 <body>
-  <!-- Home Page -->
   <div id="homePage" class="home-page">
     <div class="app-logo">MovieStreamer</div>
     <div class="app-subtitle">Search and stream movies instantly</div>
-    
+
     <div class="search-container">
       <div class="search-wrapper">
         <input type="text" class="search-input" id="homeSearchInput" placeholder="Search for movies..." />
@@ -32,8 +21,7 @@
     </div>
   </div>
 
-  <!-- Search Results Page -->
-  <div id="resultsPage" class="results-page">
+  <div id="resultsPage" class="results-page" style="display:none;">
     <div class="header">
       <div class="header-search">
         <button class="back-btn" id="backBtn">Back</button>
@@ -43,15 +31,14 @@
         </div>
       </div>
     </div>
-    
+
     <div class="content">
       <h1 class="results-title" id="resultsTitle">Search Results</h1>
       <div id="moviesGrid" class="movies-grid"></div>
     </div>
   </div>
 
-  <!-- Movie Profile Page -->
-  <div id="profilePage" class="profile-page">
+  <div id="profilePage" class="profile-page" style="display:none;">
     <div class="header">
       <div class="header-search">
         <button class="back-btn" id="profileBackBtn">Back to Results</button>
@@ -60,7 +47,7 @@
 
     <div class="profile-hero">
       <div class="profile-content">
-        <img id="profilePoster" class="profile-poster" src="/placeholder.svg" alt="Movie Poster" />
+        <img id="profilePoster" class="profile-poster" src="img/placeholder.jpg" alt="Movie Poster" />
         <div class="profile-info">
           <h1 id="profileTitle" class="profile-title"></h1>
           <div class="profile-meta">
@@ -99,6 +86,38 @@
     </div>
   </div>
 
+  <div id="webtorrentErrorPage" class="error-page" style="display:none;">
+    <div class="error-content">
+      <h1 class="error-title">WebTorrent Not Found</h1>
+      <p class="error-message">
+        MovieStreamer requires <b>WebTorrent</b> to stream torrents.<br>
+        Open a terminal and run <code>npm install webtorrent</code>.<br>
+        <br>
+        <span style="color:#b3b3b3;">After resolving the issue, restart MovieStreamer.</span>
+      </p>
+    </div>
+  </div>
+  <div id="mpvErrorPage" class="error-page" style="display:none;">
+    <div class="error-content">
+      <h1 class="error-title">MPV Player Not Found</h1>
+      <p class="error-message">
+        MovieStreamer requires <b>MPV</b> to play videos.<br>
+        Please download and install MPV from <a href="https://mpv.io/installation/"
+          target="_blank">mpv.io/installation</a>.<br>
+        <br>
+        <span style="color:#b3b3b3;">After installing, restart MovieStreamer.</span>
+      </p>
+    </div>
+  </div>
+
+  <div id="loadingOverlay" class="loading-overlay" style="display:none;">
+    <div class="loading-spinner-popup">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Loading stream...</div>
+    </div>
+  </div>
+
   <script src="js/app.js"></script>
 </body>
+
 </html>

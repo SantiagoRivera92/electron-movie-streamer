@@ -1,5 +1,42 @@
+// Loading overlay
+const loadingOverlay = document.getElementById('loadingOverlay');
+function showLoadingOverlay() {
+  console.log("Showing loading overlay");
+  if (loadingOverlay) loadingOverlay.style.display = 'flex';
+  else { console.warn("Loading overlay element not found"); }
+}
+function hideLoadingOverlay() {
+  if (loadingOverlay) loadingOverlay.style.display = 'none';
+}
+// WebTorrent error page
+const webtorrentErrorPage = document.getElementById("webtorrentErrorPage");
+
+// Listen for webtorrent-error event from main process
+if (window.electronAPI && window.electronAPI.onWebTorrentError) {
+  window.electronAPI.onWebTorrentError((data) => {
+    showWebTorrentErrorPage(data?.message);
+  });
+}
+
+function showWebTorrentErrorPage(message) {
+  homePage.style.display = "none";
+  resultsPage.style.display = "none";
+  profilePage.style.display = "none";
+  if (mpvErrorPage) mpvErrorPage.style.display = "none";
+  webtorrentErrorPage.style.display = "flex";
+  const errorMsg = webtorrentErrorPage.querySelector('.error-message');
+  if (errorMsg && message) errorMsg.innerHTML = message;
+}
 // MPV error page
 const mpvErrorPage = document.getElementById("mpvErrorPage");
+
+// Listen for mpv-spawned event from main process
+if (window.electronAPI && window.electronAPI.onMPVSpawned) {
+  window.electronAPI.onMPVSpawned(() => {
+    console.log("MPV has started. Hiding overlay.");
+    hideLoadingOverlay();
+  });
+}
 
 // Listen for mpv-error event from main process
 if (window.electronAPI && window.electronAPI.onStreamProgress) {
@@ -83,7 +120,6 @@ subtitleToggle.addEventListener("click", () => {
   subtitleStatus.textContent = ""
 })
 
-playBtn.addEventListener("click", startStream)
 stopBtn.addEventListener("click", stopStream)
 
 // Navigation functions
@@ -109,8 +145,10 @@ function showProfilePage() {
 
 // Search function
 async function searchMovies(query, page = 1) {
+  hideLoadingOverlay();
   const trimmedQuery = query.trim();
   if (!trimmedQuery) return;
+
 
   resultsTitle.innerHTML = "Searching...";
   moviesGrid.innerHTML = '<div class="loading-spinner"></div>';
@@ -133,6 +171,18 @@ async function searchMovies(query, page = 1) {
   resultsTitle.textContent = `Found ${movies.length} results`;
   displayMovies();
   renderPagination();
+  hideLoadingOverlay();
+
+}
+// Register stream-progress handler ONCE at top-level
+if (window.electronAPI && window.electronAPI.onStreamProgress) {
+  window.electronAPI.onStreamProgress((data) => {
+    console.log('Stream Progress:', data);
+    // Show overlay when starting
+    if (typeof data === 'string' && data.includes('webtorrentProcess = spawn')) {
+      showLoadingOverlay();
+    }
+  });
 }
 
 // Display movies grid
@@ -145,7 +195,7 @@ function displayMovies() {
     img.src = movie.medium_cover_image;
     img.alt = movie.title;
     img.className = "movie-poster";
-    img.onerror = function() {
+    img.onerror = function () {
       this.onerror = null;
       this.src = "img/placeholder.jpg";
     };
@@ -208,7 +258,7 @@ function showMovieProfile(movie) {
   selectedMovie = movie
   selectedQuality = null
 
-  profilePoster.onerror = function() { this.onerror = null; this.src = 'img/placeholder.jpg'; };
+  profilePoster.onerror = function () { this.onerror = null; this.src = 'img/placeholder.jpg'; };
   profilePoster.src = movie.large_cover_image
   profileTitle.textContent = movie.title
   profileYear.textContent = movie.year
@@ -254,13 +304,16 @@ function selectQuality(torrent, button) {
   button.classList.add("selected")
 }
 
+
 // Start streaming
 async function startStream() {
+  console.log("Starting stream!")
   if (!selectedQuality) {
     alert("Please select a quality option")
     return
   }
 
+  showLoadingOverlay();
   playBtn.disabled = true
   stopBtn.classList.remove("hidden")
   try {
@@ -276,13 +329,20 @@ async function startStream() {
       },
     })
   } catch (error) {
-    playBtn.disabled = false
+    console.error("Stream failed to start:", error);
+    hideLoadingOverlay(); // Hide it if the initial call fails
+    playBtn.disabled = false;
   }
 }
 
 // Stop streaming
 async function stopStream() {
+  console.log("Stopping stream!")
   await window.electronAPI.stopStream()
   playBtn.disabled = false
   stopBtn.classList.add("hidden")
+  hideLoadingOverlay();
 }
+
+playBtn.addEventListener('click', startStream);
+stopBtn.addEventListener('click', stopStream);
