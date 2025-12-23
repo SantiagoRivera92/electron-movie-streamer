@@ -1,4 +1,6 @@
 let movies = []
+let currentPage = 1;
+let totalPages = 1;
 let selectedMovie = null
 let selectedQuality = null
 let subtitlesEnabled = true
@@ -81,46 +83,99 @@ function showProfilePage() {
 }
 
 // Search function
-async function searchMovies(query) {
-  const trimmedQuery = query.trim()
-  if (!trimmedQuery) return
+async function searchMovies(query, page = 1) {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return;
 
-  resultsTitle.innerHTML = "Searching..."
-  moviesGrid.innerHTML = '<div class="loading-spinner"></div>'
-  showResultsPage()
-  resultsSearchInput.value = trimmedQuery
+  resultsTitle.innerHTML = "Searching...";
+  moviesGrid.innerHTML = '<div class="loading-spinner"></div>';
+  showResultsPage();
+  resultsSearchInput.value = trimmedQuery;
 
-  movies = await window.electronAPI.searchMovies(trimmedQuery)
+  // Call the API with page parameter
+  const response = await window.electronAPI.searchMovies({ query: trimmedQuery, page });
+  movies = response.movies || response;
+  currentPage = response.page || page;
+  totalPages = response.totalPages || 1;
 
-  if (movies.length === 0) {
-    resultsTitle.textContent = "No Results Found"
-    moviesGrid.innerHTML = '<p style="color: #b3b3b3;">Try searching for something else</p>'
-    return
+  if (!movies || movies.length === 0) {
+    resultsTitle.textContent = "No Results Found";
+    moviesGrid.innerHTML = '<p style="color: #b3b3b3;">Try searching for something else</p>';
+    renderPagination();
+    return;
   }
 
-  resultsTitle.textContent = `Found ${movies.length} results`
-  displayMovies()
+  resultsTitle.textContent = `Found ${movies.length} results`;
+  displayMovies();
+  renderPagination();
 }
 
 // Display movies grid
 function displayMovies() {
-  moviesGrid.innerHTML = ""
-
+  moviesGrid.innerHTML = "";
   movies.forEach((movie) => {
-    const card = document.createElement("div")
-    card.className = "movie-card"
-    card.innerHTML = `
-      <img src="${movie.medium_cover_image}" alt="${movie.title}" class="movie-poster" />
-      <div class="movie-title">${movie.title}</div>
-      <div class="movie-meta">
-        <span>${movie.year}</span>
-        <span>•</span>
-        <span class="rating">${movie.rating}</span>
-      </div>
-    `
-    card.addEventListener("click", () => showMovieProfile(movie))
-    moviesGrid.appendChild(card)
-  })
+    const card = document.createElement("div");
+    card.className = "movie-card";
+    const img = document.createElement("img");
+    img.src = movie.medium_cover_image;
+    img.alt = movie.title;
+    img.className = "movie-poster";
+    img.onerror = function() {
+      this.onerror = null;
+      this.src = "img/placeholder.jpg";
+    };
+    card.appendChild(img);
+    const titleDiv = document.createElement("div");
+    titleDiv.className = "movie-title";
+    titleDiv.textContent = movie.title;
+    card.appendChild(titleDiv);
+    const metaDiv = document.createElement("div");
+    metaDiv.className = "movie-meta";
+    metaDiv.innerHTML = `
+      <span>${movie.year}</span>
+      <span>•</span>
+      <span class="rating">${movie.rating}</span>
+    `;
+    card.appendChild(metaDiv);
+    card.addEventListener("click", () => showMovieProfile(movie));
+    moviesGrid.appendChild(card);
+  });
+}
+
+// Pagination controls
+function renderPagination() {
+  let pagination = document.getElementById('pagination');
+  if (!pagination) {
+    pagination = document.createElement('div');
+    pagination.id = 'pagination';
+    pagination.style.display = 'flex';
+    pagination.style.justifyContent = 'center';
+    pagination.style.margin = '24px 0';
+    moviesGrid.parentNode.appendChild(pagination);
+  }
+  pagination.innerHTML = '';
+  if (totalPages <= 1) {
+    pagination.style.display = 'none';
+    return;
+  }
+  pagination.style.display = 'flex';
+  // Prev button
+  const prevBtn = document.createElement('button');
+  prevBtn.textContent = 'Prev';
+  prevBtn.disabled = currentPage === 1;
+  prevBtn.onclick = () => searchMovies(resultsSearchInput.value, currentPage - 1);
+  pagination.appendChild(prevBtn);
+  // Page info
+  const pageInfo = document.createElement('span');
+  pageInfo.textContent = ` Page ${currentPage} of ${totalPages} `;
+  pageInfo.style.margin = '0 12px';
+  pagination.appendChild(pageInfo);
+  // Next button
+  const nextBtn = document.createElement('button');
+  nextBtn.textContent = 'Next';
+  nextBtn.disabled = currentPage === totalPages;
+  nextBtn.onclick = () => searchMovies(resultsSearchInput.value, currentPage + 1);
+  pagination.appendChild(nextBtn);
 }
 
 // Show movie profile
@@ -128,6 +183,7 @@ function showMovieProfile(movie) {
   selectedMovie = movie
   selectedQuality = null
 
+  profilePoster.onerror = function() { this.onerror = null; this.src = 'img/placeholder.jpg'; };
   profilePoster.src = movie.large_cover_image
   profileTitle.textContent = movie.title
   profileYear.textContent = movie.year

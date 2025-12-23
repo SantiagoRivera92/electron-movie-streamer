@@ -1,3 +1,36 @@
+/* Pagination Controls */
+#pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 32px 0 0 0;
+  gap: 16px;
+}
+#pagination button {
+  background: #1db954;
+  color: #000;
+  border: none;
+  border-radius: 500px;
+  padding: 10px 28px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  outline: none;
+}
+#pagination button:disabled {
+  background: #232323;
+  color: #b3b3b3;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+#pagination span {
+  color: #b3b3b3;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
 * {
   margin: 0;
   padding: 0;
@@ -161,7 +194,7 @@ body {
 }
 
 .movie-card {
-  background: #181818;
+  background: #121212;
   border-radius: 8px;
   padding: 16px;
   cursor: pointer;

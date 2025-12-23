@@ -47,14 +47,24 @@ app.on('activate', () => {
   }
 });
 
-ipcMain.handle('search-movies', async (event, query) => {
+ipcMain.handle('search-movies', async (event, params) => {
   try {
-    const url = `https://yts.lt/api/v2/list_movies.json?query_term=${encodeURIComponent(query)}&sort_by=seeds`;
+    let query, page;
+    if (typeof params === 'object' && params !== null) {
+      query = params.query;
+      page = params.page || 1;
+    } else {
+      query = params;
+      page = 1;
+    }
+    const url = `https://yts.lt/api/v2/list_movies.json?query_term=${encodeURIComponent(query)}&sort_by=seeds&page=${page}`;
     const response = await axios.get(url, { timeout: 10000 });
-    return response.data.data?.movies || [];
+    const movies = response.data.data?.movies || [];
+    const totalPages = response.data.data?.movie_count ? Math.ceil(response.data.data.movie_count / (response.data.data.limit || 20)) : 1;
+    return { movies, page, totalPages };
   } catch (error) {
     console.error('Search error:', error);
-    return [];
+    return { movies: [], page: 1, totalPages: 1 };
   }
 });
 

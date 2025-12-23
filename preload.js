@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  searchMovies: (query) => ipcRenderer.invoke('search-movies', query),
+  searchMovies: (params) => ipcRenderer.invoke('search-movies', params),
   searchSubtitles: (data) => ipcRenderer.invoke('search-subtitles', data),
   startStream: (data) => ipcRenderer.invoke('start-stream', data),
   stopStream: () => ipcRenderer.invoke('stop-stream'),
