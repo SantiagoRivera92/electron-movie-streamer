@@ -86,6 +86,17 @@
     </div>
   </div>
 
+  <!-- Added video player page -->
+  <div id="playerPage" class="player-page" style="display:none;">
+    <div class="video-container">
+      <video id="videoPlayer" class="video-player" controls></video>
+      <div class="player-controls">
+        <button class="player-btn" id="playerBackBtn">Back to Movie</button>
+      </div>
+      <div id="subtitleContainer" class="subtitle-container"></div>
+    </div>
+  </div>
+
   <div id="webtorrentErrorPage" class="error-page" style="display:none;">
     <div class="error-content">
       <h1 class="error-title">WebTorrent Not Found</h1>
@@ -94,18 +105,6 @@
         Open a terminal and run <code>npm install webtorrent</code>.<br>
         <br>
         <span style="color:#b3b3b3;">After resolving the issue, restart MovieStreamer.</span>
-      </p>
-    </div>
-  </div>
-  <div id="mpvErrorPage" class="error-page" style="display:none;">
-    <div class="error-content">
-      <h1 class="error-title">MPV Player Not Found</h1>
-      <p class="error-message">
-        MovieStreamer requires <b>MPV</b> to play videos.<br>
-        Please download and install MPV from <a href="https://mpv.io/installation/"
-          target="_blank">mpv.io/installation</a>.<br>
-        <br>
-        <span style="color:#b3b3b3;">After installing, restart MovieStreamer.</span>
       </p>
     </div>
   </div>

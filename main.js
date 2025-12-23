@@ -1,17 +1,18 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
-const path = require('path');
-const { spawn } = require('child_process');
-const axios = require('axios');
-const fs = require('fs').promises;
-const os = require('os');
-const { rimraf } = require('rimraf');
-const fsSync = require('fs');
+const { app, BrowserWindow, ipcMain, protocol } = require("electron")
+const path = require("path")
+const { spawn } = require("child_process")
+const axios = require("axios")
+const fs = require("fs").promises
+const os = require("os")
+const { rimraf } = require("rimraf")
+const fsSync = require("fs")
+const express = require("express")
+const appExpress = express()
 
-let mainWindow;
-let webtorrentProcess = null;
-let mpvProcess = null;
-let tempDir = null;
-let subtitlePath = null;
+let mainWindow
+let webtorrentProcess = null
+let tempDir = null
+let subtitlePath = null
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -20,333 +21,340 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, "preload.js"),
+      webSecurity: false, // Allow loading local resources
     },
-    icon: path.join(__dirname, 'icon.png')
-  });
+    icon: path.join(__dirname, "icon.png"),
+  })
 
-  mainWindow.loadFile('index.html');
+  mainWindow.loadFile("index.html")
 
-  mainWindow.on('closed', () => {
-    cleanup();
-    mainWindow = null;
-  });
+  mainWindow.on("closed", () => {
+    cleanup()
+    mainWindow = null
+  })
 }
 
-app.whenReady().then(createWindow);
+// Register custom protocol for serving subtitles
+app.whenReady().then(() => {
+  // The old subtitle:// protocol won't work with the <track> element - use HTTP instead
 
-app.on('window-all-closed', () => {
-  cleanup();
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
-
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
-});
-
-ipcMain.handle('search-movies', async (event, params) => {
-  try {
-    let query, page;
-    if (typeof params === 'object' && params !== null) {
-      query = params.query;
-      page = params.page || 1;
+  // Setup HTTP server for subtitles
+  const subtitleServerPort = 9999
+  appExpress.get("/subtitle", (req, res) => {
+    if (subtitlePath) {
+      res.sendFile(subtitlePath)
     } else {
-      query = params;
-      page = 1;
+      res.status(404).send("Subtitle not found")
     }
-    const url = `https://yts.lt/api/v2/list_movies.json?query_term=${encodeURIComponent(query)}&sort_by=seeds&page=${page}`;
-    const response = await axios.get(url, { timeout: 10000 });
-    const movies = response.data.data?.movies || [];
-    const totalPages = response.data.data?.movie_count ? Math.ceil(response.data.data.movie_count / (response.data.data.limit || 20)) : 1;
-    return { movies, page, totalPages };
-  } catch (error) {
-    console.error('Search error:', error);
-    return { movies: [], page: 1, totalPages: 1 };
+  })
+  appExpress.listen(subtitleServerPort, () => {
+    console.log(`Subtitle server running at http://localhost:${subtitleServerPort}`)
+  })
+
+  createWindow()
+})
+
+app.on("window-all-closed", () => {
+  cleanup()
+  if (process.platform !== "darwin") {
+    app.quit()
   }
-});
+})
 
-ipcMain.handle('search-subtitles', async (event, { title, year, imdbId }) => {
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow()
+  }
+})
+
+function srtToWebVtt(srtContent) {
+  // Add WEBVTT header
+  let vttContent = "WEBVTT\n\n"
+
+  // Convert SRT content - mostly the same, but with the header
+  const lines = srtContent.toString().split("\n")
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+
+    // Convert SRT timestamp format (00:00:00,000 --> 00:00:00,000)
+    // to WebVTT format (00:00:00.000 --> 00:00:00.000)
+    if (line.includes("-->")) {
+      vttContent += line.replace(/,/g, ".") + "\n"
+    } else {
+      vttContent += line + "\n"
+    }
+  }
+
+  return vttContent
+}
+
+ipcMain.handle("search-movies", async (event, params) => {
   try {
-    mainWindow.webContents.send('subtitle-progress', 'Searching for subtitles...');
+    let query, page
+    if (typeof params === "object" && params !== null) {
+      query = params.query
+      page = params.page || 1
+    } else {
+      query = params
+      page = 1
+    }
+    const url = `https://yts.lt/api/v2/list_movies.json?query_term=${encodeURIComponent(query)}&sort_by=seeds&page=${page}`
+    const response = await axios.get(url, { timeout: 10000 })
+    const movies = response.data.data?.movies || []
+    const totalPages = response.data.data?.movie_count
+      ? Math.ceil(response.data.data.movie_count / (response.data.data.limit || 20))
+      : 1
+    return { movies, page, totalPages }
+  } catch (error) {
+    console.error("Search error:", error)
+    return { movies: [], page: 1, totalPages: 1 }
+  }
+})
 
-    const searchQuery = imdbId || `${title} ${year}`;
-    const url = `https://rest.opensubtitles.org/search/query-${encodeURIComponent(searchQuery)}/sublanguageid-eng`;
+ipcMain.handle("search-subtitles", async (event, { title, year, imdbId }) => {
+  try {
+    mainWindow.webContents.send("subtitle-progress", "Searching for subtitles...")
+
+    const searchQuery = imdbId || `${title} ${year}`
+    const url = `https://rest.opensubtitles.org/search/query-${encodeURIComponent(searchQuery)}/sublanguageid-eng`
 
     const response = await axios.get(url, {
       headers: {
-        'User-Agent': 'MovieStreamer v1.0'
+        "User-Agent": "MovieStreamer v1.0",
       },
-      timeout: 10000
-    });
+      timeout: 10000,
+    })
 
     if (response.data && response.data.length > 0) {
-      const subtitle = response.data.sort((a, b) =>
-        parseFloat(b.SubRating || 0) - parseFloat(a.SubRating || 0)
-      )[0];
+      const subtitle = response.data.sort(
+        (a, b) => Number.parseFloat(b.SubRating || 0) - Number.parseFloat(a.SubRating || 0),
+      )[0]
 
-      mainWindow.webContents.send('subtitle-progress', 'Downloading subtitle...');
+      mainWindow.webContents.send("subtitle-progress", "Downloading subtitle...")
 
       const subResponse = await axios.get(subtitle.SubDownloadLink, {
-        responseType: 'arraybuffer',
-        timeout: 10000
-      });
+        responseType: "arraybuffer",
+        timeout: 10000,
+      })
 
-      let subContent = subResponse.data;
-      if (subtitle.SubDownloadLink.endsWith('.gz')) {
-        const zlib = require('zlib');
-        subContent = zlib.gunzipSync(Buffer.from(subContent));
+      let subContent = subResponse.data
+      if (subtitle.SubDownloadLink.endsWith(".gz")) {
+        const zlib = require("zlib")
+        subContent = zlib.gunzipSync(Buffer.from(subContent))
       }
 
-      subtitlePath = path.join(os.tmpdir(), `subtitle_${Date.now()}.srt`);
-      await fs.writeFile(subtitlePath, subContent);
+      const vttContent = srtToWebVtt(subContent)
 
-      mainWindow.webContents.send('subtitle-progress', 'Subtitle downloaded successfully');
-      return { success: true, path: subtitlePath };
+      subtitlePath = path.join(os.tmpdir(), `subtitle_${Date.now()}.vtt`)
+      await fs.writeFile(subtitlePath, vttContent)
+
+      const subtitleUrl = `http://localhost:9999/subtitle`
+      console.log("[Subtitle] Downloaded to:", subtitlePath)
+      console.log("[Subtitle] URL:", subtitleUrl)
+
+      mainWindow.webContents.send("subtitle-progress", "Subtitle downloaded successfully")
+      return { success: true, path: subtitleUrl }
     } else {
-      mainWindow.webContents.send('subtitle-progress', 'No subtitles found');
-      return { success: false, message: 'No subtitles found' };
+      mainWindow.webContents.send("subtitle-progress", "No subtitles found")
+      return { success: false, message: "No subtitles found" }
     }
   } catch (error) {
-    console.error('Subtitle search error:', error);
-    mainWindow.webContents.send('subtitle-progress', 'Subtitle download failed');
-    return { success: false, message: error.message };
+    console.error("Subtitle search error:", error)
+    mainWindow.webContents.send("subtitle-progress", "Subtitle download failed")
+    return { success: false, message: error.message }
   }
-});
+})
 
-ipcMain.handle('start-stream', async (event, { hash, title, quality, useSubtitles, movieData }) => {
+ipcMain.handle("start-stream", async (event, { hash, title, quality, useSubtitles, movieData }) => {
   try {
+    // Clean up any existing stream first
+    await cleanup()
+
     // 1. Setup temporary directory for movie chunks
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'movie-stream-'));
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "movie-stream-"))
 
     // 2. Search for subtitles if requested
+    let subtitleUrl = null
     if (useSubtitles && movieData) {
-      await ipcMain.emit('search-subtitles-internal', event, {
+      const subResult = await searchSubtitlesInternal({
         title: movieData.title,
         year: movieData.year,
-        imdbId: movieData.imdb_code
-      });
+        imdbId: movieData.imdb_code,
+      })
+      if (subResult.success) {
+        subtitleUrl = `http://localhost:9999/subtitle`
+      }
     }
 
-    const magnet = `magnet:?xt=urn:btih:${hash}&dn=${encodeURIComponent(title)}`;
-    const port = 8080;
+    const magnet = `magnet:?xt=urn:btih:${hash}&dn=${encodeURIComponent(title)}`
+    // Use a random port between 8080-8180 to avoid conflicts
+    const port = 8080 + Math.floor(Math.random() * 100)
 
     // 3. Define the path to your custom worker script
-    // This script lives in your app's root directory
-    const nodeBin = process.execPath;
-    const workerPath = path.join(__dirname, 'torrent-worker.js');
+    const nodeBin = process.execPath
+    const workerPath = path.join(__dirname, "torrent-worker.js")
 
     // 4. Spawn the worker using Electron-as-Node mode
-    webtorrentProcess = spawn(nodeBin, [
-      workerPath,
-      magnet,
-      port.toString(),
-      tempDir
-    ], {
+    webtorrentProcess = spawn(nodeBin, [workerPath, magnet, port.toString(), tempDir], {
       env: {
         ...process.env,
-        ELECTRON_RUN_AS_NODE: '1' // Ensures it runs as a pure Node process
-      }
-    });
+        ELECTRON_RUN_AS_NODE: "1",
+      },
+    })
 
-    let streamUrl = null;
+    let streamUrl = null
 
     return new Promise((resolve, reject) => {
-      // 60-second timeout if no peers/server start
       const timeout = setTimeout(() => {
-        cleanup();
-        reject(new Error('Timeout: Could not find enough peers to start the stream.'));
-      }, 60000);
+        cleanup()
+        reject(new Error("Timeout: Could not find enough peers to start the stream."))
+      }, 60000)
 
-      webtorrentProcess.stdout.on('data', (data) => {
-        const output = data.toString();
-        
-        // Forward progress to the UI
-        mainWindow.webContents.send('stream-progress', output);
+      webtorrentProcess.stdout.on("data", (data) => {
+        const output = data.toString()
+        mainWindow.webContents.send("stream-progress", output)
 
-        // Detect when the internal WebTorrent server is ready
-        if (output.includes('Server running at:')) {
-          const match = output.match(/http:\/\/localhost:\d+\/\S+/);
+        if (output.includes("Server running at:")) {
+          const match = output.match(/http:\/\/localhost:\d+\/\S+/)
           if (match) {
-            streamUrl = match[0];
-            clearTimeout(timeout);
-            
-            // Short delay to allow initial buffering
-            setTimeout(() => {
-              startMPV(streamUrl, title, useSubtitles);
-              resolve({ success: true, url: streamUrl });
-            }, 3000);
+            streamUrl = match[0]
+            clearTimeout(timeout)
+
+            console.log("[Main] Resolving with URL:", streamUrl)
+            console.log("[Main] Subtitle URL:", subtitleUrl)
+            const result = { success: true, url: streamUrl, subtitleUrl }
+            console.log("[Main] Full result:", JSON.stringify(result, null, 2))
+            resolve(result)
           }
         }
-      });
+      })
 
-      webtorrentProcess.stderr.on('data', (data) => {
-        const errOutput = data.toString();
-        console.error('[Worker STDERR]', errOutput);
-        mainWindow.webContents.send('stream-progress', `[Log] ${errOutput}`);
-      });
+      webtorrentProcess.stderr.on("data", (data) => {
+        const errOutput = data.toString()
+        console.error("[Worker STDERR]", errOutput)
+        mainWindow.webContents.send("stream-progress", `[Log] ${errOutput}`)
+      })
 
-      webtorrentProcess.on('error', (err) => {
-        clearTimeout(timeout);
-        console.error('Failed to spawn worker:', err);
-        reject(new Error(`Worker execution failed: ${err.message}`));
-      });
+      webtorrentProcess.on("error", (err) => {
+        clearTimeout(timeout)
+        console.error("Failed to spawn worker:", err)
+        reject(new Error(`Worker execution failed: ${err.message}`))
+      })
 
-      webtorrentProcess.on('close', (code, signal) => {
-        console.log(`[Worker CLOSE] code: ${code}, signal: ${signal}`);
+      webtorrentProcess.on("close", (code, signal) => {
+        console.log(`[Worker CLOSE] code: ${code}, signal: ${signal}`)
         if (!streamUrl) {
-          clearTimeout(timeout);
-          reject(new Error('Stream worker exited unexpectedly.'));
+          clearTimeout(timeout)
+          reject(new Error("Stream worker exited unexpectedly."))
         }
-      });
-    });
+      })
+    })
   } catch (error) {
-    console.error('Stream Start Error:', error);
-    cleanup();
-    throw error;
+    console.error("Stream Start Error:", error)
+    cleanup()
+    throw error
   }
-});
+})
 
-ipcMain.on('search-subtitles-internal', async (event, data) => {
+async function searchSubtitlesInternal(data) {
   try {
-    mainWindow.webContents.send('subtitle-progress', 'Searching for subtitles...');
+    mainWindow.webContents.send("subtitle-progress", "Searching for subtitles...")
 
-    const searchQuery = data.imdbId || `${data.title} ${data.year}`;
-    const url = `https://rest.opensubtitles.org/search/query-${encodeURIComponent(searchQuery)}/sublanguageid-eng`;
+    const searchQuery = data.imdbId || `${data.title} ${data.year}`
+    const url = `https://rest.opensubtitles.org/search/query-${encodeURIComponent(searchQuery)}/sublanguageid-eng`
 
     const response = await axios.get(url, {
       headers: {
-        'User-Agent': 'MovieStreamer v1.0'
+        "User-Agent": "MovieStreamer v1.0",
       },
-      timeout: 10000
-    });
+      timeout: 10000,
+    })
 
     if (response.data && response.data.length > 0) {
-      const subtitle = response.data.sort((a, b) =>
-        parseFloat(b.SubRating || 0) - parseFloat(a.SubRating || 0)
-      )[0];
+      const subtitle = response.data.sort(
+        (a, b) => Number.parseFloat(b.SubRating || 0) - Number.parseFloat(a.SubRating || 0),
+      )[0]
 
-      mainWindow.webContents.send('subtitle-progress', 'Downloading subtitle...');
+      mainWindow.webContents.send("subtitle-progress", "Downloading subtitle...")
 
       const subResponse = await axios.get(subtitle.SubDownloadLink, {
-        responseType: 'arraybuffer',
-        timeout: 10000
-      });
+        responseType: "arraybuffer",
+        timeout: 10000,
+      })
 
-      let subContent = subResponse.data;
-      if (subtitle.SubDownloadLink.endsWith('.gz')) {
-        const zlib = require('zlib');
-        subContent = zlib.gunzipSync(Buffer.from(subContent));
+      let subContent = subResponse.data
+      if (subtitle.SubDownloadLink.endsWith(".gz")) {
+        const zlib = require("zlib")
+        subContent = zlib.gunzipSync(Buffer.from(subContent))
       }
 
-      subtitlePath = path.join(os.tmpdir(), `subtitle_${Date.now()}.srt`);
-      await fs.writeFile(subtitlePath, subContent);
+      const vttContent = srtToWebVtt(subContent)
 
-      mainWindow.webContents.send('subtitle-progress', '✓ Subtitle downloaded');
+      subtitlePath = path.join(os.tmpdir(), `subtitle_${Date.now()}.vtt`)
+      await fs.writeFile(subtitlePath, vttContent)
+
+      const subtitleUrl = `http://localhost:9999/subtitle`
+      console.log("[Subtitle Internal] Downloaded to:", subtitlePath)
+      console.log("[Subtitle Internal] URL:", subtitleUrl)
+
+      mainWindow.webContents.send("subtitle-progress", "✓ Subtitle downloaded")
+      return { success: true, path: subtitleUrl }
     } else {
-      mainWindow.webContents.send('subtitle-progress', '✗ No subtitles found');
+      mainWindow.webContents.send("subtitle-progress", "✗ No subtitles found")
+      return { success: false }
     }
   } catch (error) {
-    console.error('Subtitle error:', error);
-    mainWindow.webContents.send('subtitle-progress', '✗ Subtitle download failed');
-  }
-});
-
-function startMPV(url, title, useSubtitles) {
-  if (mpvProcess && !mpvProcess.killed) {
-    console.log('MPV is already running.');
-    return;
-  }
-  const mpvArgs = [
-    url,
-    `--title=${title}`,
-    '--fs',
-    '--cache=yes',
-    '--demuxer-max-bytes=50M',
-    '--demuxer-max-back-bytes=25M',
-    '--cache-secs=5',
-    '--force-seekable=yes'
-  ];
-
-  // Add subtitle file if available
-  if (useSubtitles && subtitlePath) {
-    mpvArgs.push(`--sub-file=${subtitlePath}`);
-    mpvArgs.push('--sub-auto=fuzzy');
-  }
-  try {
-    mpvProcess = spawn('mpv', mpvArgs);
-    mpvProcess.on('error', (err) => {
-      console.error('MPV spawn error:', err);
-      if (err.code == 'ENOENT' && err.errno == -2) {
-        mainWindow.webContents.send('mpv-error', {
-          message: 'MPV player not found. MovieStreamer requires MPV to play videos. Please download and install MPV from https://mpv.io/installation/.',
-          url: 'https://mpv.io/installation/'
-        });
-      }
-    });
-    mainWindow.webContents.send('mpv-spawned');
-    mpvProcess.on('close', (code) => {
-      console.log(`MPV exited with code ${code}`);
-      cleanup();
-      mainWindow.webContents.send('playback-ended');
-    });
-    mpvProcess.stderr.on('data', (data) => {
-      console.log('MPV:', data.toString());
-    });
-  } catch (err) {
-    console.error('Failed to spawn MPV:', err);
-    mainWindow.webContents.send('mpv-error', {
-      message: 'MPV player not found. MovieStreamer requires MPV to play videos. Please download and install MPV from https://mpv.io/installation/.',
-      url: 'https://mpv.io/installation/'
-    });
-    return;
+    console.error("Subtitle error:", error)
+    mainWindow.webContents.send("subtitle-progress", "✗ Subtitle download failed")
+    return { success: false }
   }
 }
-ipcMain.handle('stop-stream', async () => {
-  cleanup();
-  return { success: true };
-});
+
+ipcMain.handle("stop-stream", async () => {
+  cleanup()
+  return { success: true }
+})
 
 async function cleanup() {
   if (webtorrentProcess) {
-    webtorrentProcess.kill();
-    webtorrentProcess = null;
-  }
+    try {
+      webtorrentProcess.kill("SIGTERM")
+      // Give it a moment to shut down gracefully
+      await new Promise((resolve) => setTimeout(resolve, 500))
 
-  if (mpvProcess) {
-    mpvProcess.kill();
-    mpvProcess = null;
+      // Force kill if still running
+      if (!webtorrentProcess.killed) {
+        webtorrentProcess.kill("SIGKILL")
+      }
+    } catch (error) {
+      console.error("Error killing webtorrent process:", error)
+    }
+    webtorrentProcess = null
   }
 
   if (tempDir) {
     try {
-      await rimraf(tempDir);
-      console.log('Cleaned up temp directory');
+      await rimraf(tempDir)
+      console.log("Cleaned up temp directory")
     } catch (error) {
-      console.error('Cleanup error:', error);
+      console.error("Cleanup error:", error)
     }
-    tempDir = null;
+    tempDir = null
   }
 
   if (subtitlePath) {
     try {
-      await fs.unlink(subtitlePath);
-      console.log('Cleaned up subtitle file');
+      await fs.unlink(subtitlePath)
+      console.log("Cleaned up subtitle file")
     } catch (error) {
-      console.error('Subtitle cleanup error:', error);
+      console.error("Subtitle cleanup error:", error)
     }
-    subtitlePath = null;
+    subtitlePath = null
   }
 }
 
-app.on('before-quit', () => {
-  cleanup();
-});
-
-ipcMain.on('open-mpv-download', () => {
-  const { shell } = require('electron');
-  shell.openExternal('https://mpv.io/installation/');
-});
+app.on("before-quit", () => {
+  cleanup()
+})

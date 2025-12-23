@@ -48,7 +48,6 @@ I don't own a Mac, so I can't compile or sign the app for macOS. Apple requires 
 ### Prerequisites
 - [Node.js](https://nodejs.org/)
 - [npm](https://www.npmjs.com/)
-- [mpv](https://mpv.io/installation/)
 
 ### Setup
 ```bash
@@ -76,6 +75,7 @@ Movie Streamer/
 ├── index.html
 ├── main.js
 ├── preload.js
+└── torrent-worker.js
 ├── package.json
 ├── LICENSE
 └── README.md

@@ -18,7 +18,7 @@
   background: #232323;
   border-radius: 24px;
   padding: 48px 40px;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.12);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.12);
 }
 .loading-spinner {
   border: 6px solid #232323;
@@ -36,45 +36,12 @@
   text-align: center;
 }
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-/* MPV Error Page Styles */
-.error-page {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  background: linear-gradient(180deg, #121212 0%, #1a1a1a 100%);
-}
-.error-content {
-  background: #232323;
-  border-radius: 24px;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.12);
-  padding: 48px 32px;
-  max-width: 480px;
-  text-align: center;
-}
-.error-title {
-  font-size: 32px;
-  font-weight: 900;
-  margin-bottom: 18px;
-  background: linear-gradient(90deg, #1db954 0%, #1ed760 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.error-message {
-  font-size: 18px;
-  color: #b3b3b3;
-  margin-bottom: 16px;
-  line-height: 1.6;
-}
-.error-message a {
-  color: #1db954;
-  font-weight: 700;
-  text-decoration: underline;
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 /* Pagination Controls */
 #pagination {
@@ -94,7 +61,7 @@
   font-weight: 700;
   cursor: pointer;
   transition: background 0.2s, color 0.2s, box-shadow 0.2s;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   outline: none;
 }
 #pagination button:disabled {
@@ -583,4 +550,66 @@ body {
   border-radius: 500px;
   font-size: 14px;
   color: #ffffff;
+}
+
+/* video player styles */
+.player-page {
+  display: none;
+  min-height: 100vh;
+  background: #000000;
+  position: relative;
+}
+
+.video-container {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #000000;
+}
+
+.video-player {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  background: #000000;
+}
+
+.player-controls {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+  /* moved button from bottom-left to top-right to avoid overlapping video controls */
+}
+
+.player-btn {
+  padding: 10px 24px;
+  background: #1db954;
+  color: #000000;
+  font-weight: 700;
+  font-size: 14px;
+  border: none;
+  border-radius: 500px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.player-btn:hover {
+  background: #1ed760;
+  transform: scale(1.04);
+}
+
+.subtitle-container {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 1200px;
+  text-align: center;
+  z-index: 50;
 }
