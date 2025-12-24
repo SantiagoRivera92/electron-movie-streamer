@@ -514,7 +514,7 @@ function addSubtitleTrack(subtitleUrl) {
   }
 }
 
-// ==================== STREAM PROGRESS HANDLERS ====================
+// ==================== STREAM PROGRESS HANDLERS =====================
 if (window.electronAPI && window.electronAPI.onStreamProgress) {
   window.electronAPI.onStreamProgress((data) => {
     console.log("Stream Progress:", data)
