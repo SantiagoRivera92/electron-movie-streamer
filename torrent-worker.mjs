@@ -1,4 +1,5 @@
 async function start() {
+
   const { default: WebTorrent } = await import("webtorrent")
   const http = await import("http")
 
@@ -13,8 +14,19 @@ async function start() {
       return;
     }
     const server = http.createServer((req, res) => {
-      // Find the largest file (the movie)
-      const file = torrent.files.reduce((a, b) => (a.length > b.length ? a : b))
+      const videoExtensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm'];
+      const videoFiles = torrent.files.filter(file =>
+        videoExtensions.some(ext => file.name.toLowerCase().endsWith(ext))
+      );
+
+      if (videoFiles.length === 0) {
+        console.error('[torrent-worker] No video files found in torrent');
+        process.exit(1);
+      }
+
+      // Find the largest video file (the movie)
+      const file = videoFiles.reduce((a, b) => (a.length > b.length ? a : b));
+
 
       // Handle HTTP Range Headers for seeking
       const range = req.headers.range

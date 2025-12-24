@@ -58,15 +58,12 @@
             <span id="profileRuntime"></span>
           </div>
           <p id="profileDescription" class="profile-description"></p>
+          <div id="imdbGenres" class="imdb-genres"></div>
         </div>
       </div>
     </div>
 
     <div class="profile-body">
-      <div id="imdbInfo" class="imdb-info hidden">
-        <div class="section-title">About</div>
-        <div id="imdbGenres" class="imdb-genres"></div>
-      </div>
 
       <div class="section-title">Select Quality</div>
       <div id="qualityOptions" class="quality-options"></div>
@@ -86,26 +83,31 @@
     </div>
   </div>
 
-  <!-- Added video player page -->
+  <!-- Video player page -->
   <div id="playerPage" class="player-page" style="display:none;">
-    <div class="video-container">
-      <video id="videoPlayer" class="video-player" controls></video>
-      <div class="player-controls">
-        <button class="player-btn" id="playerBackBtn">Back to Movie</button>
-      </div>
-      <div id="subtitleContainer" class="subtitle-container"></div>
-    </div>
-  </div>
+    <div class="video-container" id="videoContainer">
+      <video id="videoPlayer" class="video-player"></video>
+      <div id="videoOverlay" class="video-overlay"></div>
 
-  <div id="webtorrentErrorPage" class="error-page" style="display:none;">
-    <div class="error-content">
-      <h1 class="error-title">WebTorrent Not Found</h1>
-      <p class="error-message">
-        MovieStreamer requires <b>WebTorrent</b> to stream torrents.<br>
-        Open a terminal and run <code>npm install webtorrent</code>.<br>
-        <br>
-        <span style="color:#b3b3b3;">After resolving the issue, restart MovieStreamer.</span>
-      </p>
+      <div class="custom-controls" id="customControls">
+        <div class="progress-container">
+          <input type="range" id="seekBar" class="seek-bar" min="0" max="100" value="0" step="0.1">
+        </div>
+        <div class="control-buttons">
+          <button id="playPauseBtn" class="icon-btn">▶</button>
+
+          <div class="time-display">
+            <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
+          </div>
+
+          <div class="right-controls">
+            <button id="fullscreenBtn" class="icon-btn">⛶</button>
+            <button id="playerBackBtn" class="player-btn">Back</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="subtitleContainer" class="subtitle-container"></div>
     </div>
   </div>
 

@@ -42,8 +42,7 @@
     "clsx": "2.1.1",
     "lucide-react": "0.562.0",
     "tailwind-merge": "3.4.0",
-    "tailwindcss-animate": "1.0.7",
-    "express": "5.2.1"
+    "tailwindcss-animate": "1.0.7"
   },
   "build": {
     "appId": "com.moviestreamer.app",
@@ -53,7 +52,7 @@
     },
     "files": [
       "main.js",
-      "torrent-worker.js",
+      "torrent-worker.mjs",
       "preload.js",
       "index.html",
       "icon.png",

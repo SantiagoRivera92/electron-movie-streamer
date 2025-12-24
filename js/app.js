@@ -1,19 +1,19 @@
-// Loading overlay
+// ==================== LOADING OVERLAY ====================
 const loadingOverlay = document.getElementById("loadingOverlay")
+
 function showLoadingOverlay() {
   console.log("Showing loading overlay")
   if (loadingOverlay) loadingOverlay.style.display = "flex"
-  else {
-    console.warn("Loading overlay element not found")
-  }
+  else console.warn("Loading overlay element not found")
 }
+
 function hideLoadingOverlay() {
   if (loadingOverlay) loadingOverlay.style.display = "none"
 }
-// WebTorrent error page
+
+// ==================== ERROR HANDLING ====================
 const webtorrentErrorPage = document.getElementById("webtorrentErrorPage")
 
-// Listen for webtorrent-error event from main process
 if (window.electronAPI && window.electronAPI.onWebTorrentError) {
   window.electronAPI.onWebTorrentError((data) => {
     showWebTorrentErrorPage(data?.message)
@@ -25,11 +25,13 @@ function showWebTorrentErrorPage(message) {
   resultsPage.style.display = "none"
   profilePage.style.display = "none"
   playerPage.style.display = "none"
-  webtorrentErrorPage.style.display = "flex"
-  const errorMsg = webtorrentErrorPage.querySelector(".error-message")
-  if (errorMsg && message) errorMsg.innerHTML = message
+  if (webtorrentErrorPage) {
+    webtorrentErrorPage.style.display = "flex"
+    const errorMsg = webtorrentErrorPage.querySelector(".error-message")
+    if (errorMsg && message) errorMsg.innerHTML = message
+  }
 }
-// Playback ended handler
+
 if (window.electronAPI && window.electronAPI.onPlaybackEnded) {
   window.electronAPI.onPlaybackEnded(() => {
     console.log("Video playback ended")
@@ -37,6 +39,7 @@ if (window.electronAPI && window.electronAPI.onPlaybackEnded) {
   })
 }
 
+// ==================== STATE VARIABLES ====================
 let movies = []
 let currentPage = 1
 let totalPages = 1
@@ -45,13 +48,23 @@ let selectedQuality = null
 let subtitlesEnabled = true
 let currentStreamUrl = null
 
+// ==================== DOM ELEMENTS ====================
 // Pages
 const homePage = document.getElementById("homePage")
 const resultsPage = document.getElementById("resultsPage")
 const profilePage = document.getElementById("profilePage")
 const playerPage = document.getElementById("playerPage")
+
+// Video Player Elements
 const videoPlayer = document.getElementById("videoPlayer")
+const videoContainer = document.getElementById("videoContainer")
 const playerBackBtn = document.getElementById("playerBackBtn")
+const playPauseBtn = document.getElementById("playPauseBtn")
+const fullscreenBtn = document.getElementById("fullscreenBtn")
+const overlay = document.getElementById("videoOverlay")
+const seekBar = document.getElementById("seekBar")
+const currentTimeDisplay = document.getElementById("currentTime")
+const durationDisplay = document.getElementById("duration")
 
 // Home page elements
 const homeSearchInput = document.getElementById("homeSearchInput")
@@ -72,7 +85,6 @@ const profileYear = document.getElementById("profileYear")
 const profileRating = document.getElementById("profileRating")
 const profileRuntime = document.getElementById("profileRuntime")
 const profileDescription = document.getElementById("profileDescription")
-const imdbInfo = document.getElementById("imdbInfo")
 const imdbGenres = document.getElementById("imdbGenres")
 const qualityOptions = document.getElementById("qualityOptions")
 const subtitleToggle = document.getElementById("subtitleToggle")
@@ -81,69 +93,7 @@ const subtitleStatus = document.getElementById("subtitleStatus")
 const playBtn = document.getElementById("playBtn")
 const stopBtn = document.getElementById("stopBtn")
 
-// Event listeners
-homeSearchInput.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") searchMovies(homeSearchInput.value)
-})
-homeSearchBtn.addEventListener("click", () => searchMovies(homeSearchInput.value))
-
-resultsSearchInput.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") searchMovies(resultsSearchInput.value)
-})
-resultsSearchBtn.addEventListener("click", () => searchMovies(resultsSearchInput.value))
-
-backBtn.addEventListener("click", showHomePage)
-profileBackBtn.addEventListener("click", showResultsPage)
-
-playerBackBtn.addEventListener("click", () => {
-  videoPlayer.pause()
-  videoPlayer.src = ""
-  // Remove subtitle track if exists
-  const tracks = videoPlayer.querySelectorAll('track')
-  tracks.forEach(track => track.remove())
-  playBtn.disabled = false
-  stopBtn.classList.add("hidden")
-  showProfilePage()
-})
-
-videoPlayer.addEventListener("stalled", () => {
-  console.log("[v0] Video stalled, retrying in 1 second...")
-  setTimeout(() => {
-    videoPlayer.play().catch((err) => {
-      console.log("[v0] Retry play failed:", err.message)
-    })
-  }, 1000)
-})
-
-videoPlayer.addEventListener("waiting", () => {
-  console.log("[v0] Video waiting for data")
-})
-
-videoPlayer.addEventListener("error", () => {
-  const error = videoPlayer.error
-  if (error) {
-    console.log("[v0] Video player error:", error.message)
-    if (error.code === error.MEDIA_ERR_NETWORK || error.code === error.MEDIA_ERR_SRC_NOT_SUPPORTED) {
-      setTimeout(() => {
-        console.log("[v0] Retrying video playback after error...")
-        videoPlayer.load()
-        videoPlayer.play().catch((err) => {
-          console.log("[v0] Retry failed:", err.message)
-        })
-      }, 1500)
-    }
-  }
-})
-
-subtitleToggle.addEventListener("click", () => {
-  subtitlesEnabled = !subtitlesEnabled
-  toggleSwitch.classList.toggle("active", subtitlesEnabled)
-  subtitleStatus.textContent = ""
-})
-
-stopBtn.addEventListener("click", stopStream)
-
-// Navigation functions
+// ==================== NAVIGATION FUNCTIONS ====================
 function showHomePage() {
   homePage.classList.remove("hidden")
   resultsPage.style.display = "none"
@@ -174,7 +124,190 @@ function showPlayerPage() {
   playerPage.style.display = "block"
 }
 
-// Search function
+// ==================== VIDEO PLAYER FUNCTIONS ====================
+// Format time helper
+function formatTime(seconds) {
+  if (isNaN(seconds) || !isFinite(seconds)) return '0:00'
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs < 10 ? '0' : ''}${secs}`
+}
+
+// Update duration when metadata loads
+videoPlayer.addEventListener('loadedmetadata', () => {
+  if (videoPlayer.duration && isFinite(videoPlayer.duration)) {
+    durationDisplay.textContent = formatTime(videoPlayer.duration)
+    seekBar.max = videoPlayer.duration
+  }
+})
+
+// Update current time and seek bar as video plays
+videoPlayer.addEventListener('timeupdate', () => {
+  if (videoPlayer.duration && isFinite(videoPlayer.duration)) {
+    currentTimeDisplay.textContent = formatTime(videoPlayer.currentTime)
+    seekBar.value = videoPlayer.currentTime
+
+    // Update seek bar max in case it wasn't set yet
+    if (seekBar.max != videoPlayer.duration) {
+      seekBar.max = videoPlayer.duration
+    }
+  }
+})
+
+// Seek when slider moves
+seekBar.addEventListener('input', () => {
+  const time = parseFloat(seekBar.value)
+  if (!isNaN(time)) {
+    videoPlayer.currentTime = time
+  }
+})
+
+// Play/Pause button
+playPauseBtn.addEventListener('click', () => {
+  if (videoPlayer.paused) {
+    videoPlayer.play()
+  } else {
+    videoPlayer.pause()
+  }
+})
+
+// Update play/pause button icon
+videoPlayer.addEventListener('play', () => {
+  playPauseBtn.textContent = '⏸'
+  resetIdle()
+})
+
+videoPlayer.addEventListener('pause', () => {
+  playPauseBtn.textContent = '▶'
+  videoContainer.classList.remove('user-idle')
+  clearTimeout(idleTimer)
+})
+
+// ==================== FULLSCREEN & UI IDLE ====================
+let idleTimer
+
+function hideUI() {
+  if (!videoPlayer.paused) {
+    videoContainer.classList.add('user-idle')
+  }
+}
+
+function resetIdle() {
+  videoContainer.classList.remove('user-idle')
+  clearTimeout(idleTimer)
+  idleTimer = setTimeout(hideUI, 3000) // 3 seconds
+}
+
+videoContainer.addEventListener('mousemove', resetIdle)
+videoContainer.addEventListener('mousedown', resetIdle)
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    videoContainer.requestFullscreen().catch(err => {
+      console.error(`Error attempting to enable full-screen mode: ${err.message}`)
+    })
+  } else {
+    document.exitFullscreen()
+  }
+}
+
+// Fullscreen on button click
+fullscreenBtn.addEventListener('click', toggleFullscreen)
+
+// Fullscreen on double click
+overlay.addEventListener('dblclick', toggleFullscreen)
+
+// Single click to play/pause
+overlay.addEventListener('click', () => {
+  if (videoPlayer.paused) {
+    videoPlayer.play()
+  } else {
+    videoPlayer.pause()
+  }
+})
+
+// ==================== KEYBOARD SHORTCUTS ====================
+window.addEventListener('keydown', (e) => {
+  if (playerPage.style.display !== 'none') {
+    if (e.code === 'Space') {
+      e.preventDefault()
+      if (videoPlayer.paused) {
+        videoPlayer.play()
+      } else {
+        videoPlayer.pause()
+      }
+    }
+    if (e.code === 'KeyF') {
+      toggleFullscreen()
+    }
+    if (e.code === 'ArrowRight') {
+      videoPlayer.currentTime += 10
+    }
+    if (e.code === 'ArrowLeft') {
+      videoPlayer.currentTime -= 10
+    }
+  }
+})
+
+// ==================== VIDEO ERROR HANDLING ====================
+videoPlayer.addEventListener("stalled", () => {
+  console.log("[Video] Stalled, retrying in 1 second...")
+  setTimeout(() => {
+    videoPlayer.play().catch((err) => {
+      console.log("[Video] Retry play failed:", err.message)
+    })
+  }, 1000)
+})
+
+videoPlayer.addEventListener("waiting", () => {
+  console.log("[Video] Waiting for data")
+})
+
+videoPlayer.addEventListener("error", () => {
+  const error = videoPlayer.error
+  if (error) {
+    console.log("[Video] Player error:", error.message)
+    if (error.code === error.MEDIA_ERR_NETWORK || error.code === error.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+      setTimeout(() => {
+        console.log("[Video] Retrying video playback after error...")
+        videoPlayer.load()
+        videoPlayer.play().catch((err) => {
+          console.log("[Video] Retry failed:", err.message)
+        })
+      }, 1500)
+    }
+  }
+})
+
+// ==================== PLAYER BACK BUTTON ====================
+playerBackBtn.addEventListener("click", () => {
+  videoPlayer.pause()
+  videoPlayer.src = ""
+
+  // Remove subtitle track if exists
+  const tracks = videoPlayer.querySelectorAll('track')
+  tracks.forEach(track => track.remove())
+
+  if (document.fullscreenElement) {
+    document.exitFullscreen()
+  }
+
+  playBtn.disabled = false
+  stopBtn.classList.add("hidden")
+  showProfilePage()
+})
+
+// ==================== SEARCH FUNCTIONS ====================
+homeSearchInput.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") searchMovies(homeSearchInput.value)
+})
+homeSearchBtn.addEventListener("click", () => searchMovies(homeSearchInput.value))
+
+resultsSearchInput.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") searchMovies(resultsSearchInput.value)
+})
+resultsSearchBtn.addEventListener("click", () => searchMovies(resultsSearchInput.value))
+
 async function searchMovies(query, page = 1) {
   hideLoadingOverlay()
   const trimmedQuery = query.trim()
@@ -202,30 +335,14 @@ async function searchMovies(query, page = 1) {
   renderPagination()
   hideLoadingOverlay()
 }
-// Register stream-progress handler ONCE at top-level
-if (window.electronAPI && window.electronAPI.onStreamProgress) {
-  window.electronAPI.onStreamProgress((data) => {
-    console.log("Stream Progress:", data)
-    if (typeof data === "string" && data.includes("webtorrentProcess = spawn")) {
-      showLoadingOverlay()
-    }
-  })
-}
 
-// Register subtitle progress handler
-if (window.electronAPI && window.electronAPI.onSubtitleProgress) {
-  window.electronAPI.onSubtitleProgress((data) => {
-    console.log("Subtitle Progress:", data)
-    subtitleStatus.textContent = data
-  })
-}
-
-// Display movies grid
+// ==================== DISPLAY MOVIES ====================
 function displayMovies() {
   moviesGrid.innerHTML = ""
   movies.forEach((movie) => {
     const card = document.createElement("div")
     card.className = "movie-card"
+
     const img = document.createElement("img")
     img.src = movie.medium_cover_image
     img.alt = movie.title
@@ -235,10 +352,12 @@ function displayMovies() {
       this.src = "img/placeholder.jpg"
     }
     card.appendChild(img)
+
     const titleDiv = document.createElement("div")
     titleDiv.className = "movie-title"
     titleDiv.textContent = movie.title
     card.appendChild(titleDiv)
+
     const metaDiv = document.createElement("div")
     metaDiv.className = "movie-meta"
     metaDiv.innerHTML = `
@@ -247,12 +366,13 @@ function displayMovies() {
       <span class="rating">${movie.rating}</span>
     `
     card.appendChild(metaDiv)
+
     card.addEventListener("click", () => showMovieProfile(movie))
     moviesGrid.appendChild(card)
   })
 }
 
-// Pagination controls
+// ==================== PAGINATION ====================
 function renderPagination() {
   let pagination = document.getElementById("pagination")
   if (!pagination) {
@@ -263,23 +383,29 @@ function renderPagination() {
     pagination.style.margin = "24px 0"
     moviesGrid.parentNode.appendChild(pagination)
   }
+
   pagination.innerHTML = ""
+
   if (totalPages <= 1) {
     pagination.style.display = "none"
     return
   }
+
   pagination.style.display = "flex"
+
   // Prev button
   const prevBtn = document.createElement("button")
   prevBtn.textContent = "Prev"
   prevBtn.disabled = currentPage === 1
   prevBtn.onclick = () => searchMovies(resultsSearchInput.value, currentPage - 1)
   pagination.appendChild(prevBtn)
+
   // Page info
   const pageInfo = document.createElement("span")
   pageInfo.textContent = ` Page ${currentPage} of ${totalPages} `
   pageInfo.style.margin = "0 12px"
   pagination.appendChild(pageInfo)
+
   // Next button
   const nextBtn = document.createElement("button")
   nextBtn.textContent = "Next"
@@ -288,7 +414,10 @@ function renderPagination() {
   pagination.appendChild(nextBtn)
 }
 
-// Show movie profile
+// ==================== MOVIE PROFILE ====================
+backBtn.addEventListener("click", showHomePage)
+profileBackBtn.addEventListener("click", showResultsPage)
+
 function showMovieProfile(movie) {
   selectedMovie = movie
   selectedQuality = null
@@ -306,10 +435,9 @@ function showMovieProfile(movie) {
 
   // Display genres
   if (movie.genres && movie.genres.length > 0) {
-    imdbInfo.classList.remove("hidden")
     imdbGenres.innerHTML = movie.genres.map((genre) => `<span class="genre-tag">${genre}</span>`).join("")
   } else {
-    imdbInfo.classList.add("hidden")
+    imdbGenres.innerHTML = ""
   }
 
   // Display quality options
@@ -332,7 +460,6 @@ function showMovieProfile(movie) {
   showProfilePage()
 }
 
-// Select quality
 function selectQuality(torrent, button) {
   selectedQuality = torrent
 
@@ -342,10 +469,17 @@ function selectQuality(torrent, button) {
   button.classList.add("selected")
 }
 
-// Add subtitle track to video player
+// ==================== SUBTITLE TOGGLE ====================
+subtitleToggle.addEventListener("click", () => {
+  subtitlesEnabled = !subtitlesEnabled
+  toggleSwitch.classList.toggle("active", subtitlesEnabled)
+  subtitleStatus.textContent = ""
+})
+
+// ==================== SUBTITLE TRACK ====================
 function addSubtitleTrack(subtitleUrl) {
   console.log('[Subtitle] Adding track with URL:', subtitleUrl)
-  
+
   // Remove any existing tracks
   const existingTracks = videoPlayer.querySelectorAll('track')
   existingTracks.forEach(track => {
@@ -360,7 +494,7 @@ function addSubtitleTrack(subtitleUrl) {
     track.srclang = 'en'
     track.src = subtitleUrl
     track.default = true
-    
+
     track.addEventListener('load', () => {
       console.log('[Subtitle] Track loaded successfully')
       if (videoPlayer.textTracks.length > 0) {
@@ -368,11 +502,11 @@ function addSubtitleTrack(subtitleUrl) {
         console.log('[Subtitle] Track mode set to showing')
       }
     })
-    
+
     track.addEventListener('error', (e) => {
       console.error('[Subtitle] Track load error:', e)
     })
-    
+
     videoPlayer.appendChild(track)
     console.log('[Subtitle] Track element appended to video player')
   } else {
@@ -380,7 +514,24 @@ function addSubtitleTrack(subtitleUrl) {
   }
 }
 
-// Start streaming
+// ==================== STREAM PROGRESS HANDLERS ====================
+if (window.electronAPI && window.electronAPI.onStreamProgress) {
+  window.electronAPI.onStreamProgress((data) => {
+    console.log("Stream Progress:", data)
+    if (typeof data === "string" && data.includes("webtorrentProcess = spawn")) {
+      showLoadingOverlay()
+    }
+  })
+}
+
+if (window.electronAPI && window.electronAPI.onSubtitleProgress) {
+  window.electronAPI.onSubtitleProgress((data) => {
+    console.log("Subtitle Progress:", data)
+    subtitleStatus.textContent = data
+  })
+}
+
+// ==================== START STREAM ====================
 async function startStream() {
   console.log("Starting stream!")
   if (!selectedQuality) {
@@ -391,14 +542,14 @@ async function startStream() {
   showLoadingOverlay()
   playBtn.disabled = true
   stopBtn.classList.remove("hidden")
-  
+
   console.log('[Stream] Subtitles enabled:', subtitlesEnabled)
   console.log('[Stream] Movie data:', {
     title: selectedMovie.title,
     year: selectedMovie.year,
     imdb_code: selectedMovie.imdb_code
   })
-  
+
   try {
     const response = await window.electronAPI.startStream({
       hash: selectedQuality.hash,
@@ -413,34 +564,52 @@ async function startStream() {
     })
 
     console.log('[Stream] Full response received:', JSON.stringify(response, null, 2))
-    
-    currentStreamUrl = response.url
-    videoPlayer.src = currentStreamUrl
-    
-    console.log('[Stream] Response:', response)
-    console.log('[Stream] Subtitle URL:', response.subtitleUrl)
-    console.log('[Stream] Subtitle URL type:', typeof response.subtitleUrl)
-    
-    // Add subtitle track if available
-    if (response.subtitleUrl) {
-      console.log('[Stream] Adding subtitles')
-      addSubtitleTrack(response.subtitleUrl)
+
+    if (response.success) {
+      currentStreamUrl = response.url
+      if (response.success && response.url) {
+        // Validate URL is from localhost
+        try {
+          const url = new URL(response.url);
+          if (url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
+            throw new Error('Invalid stream URL - must be localhost');
+          }
+          currentStreamUrl = response.url;
+          videoPlayer.src = currentStreamUrl;
+          videoPlayer.load();
+        } catch (error) {
+          throw new Error('Invalid stream URL format');
+        }
+      }
+
+      console.log('[Stream] Response:', response)
+      console.log('[Stream] Subtitle URL:', response.subtitleUrl)
+      console.log('[Stream] Subtitle URL type:', typeof response.subtitleUrl)
+
+      // Add subtitle track if available
+      if (response.subtitleUrl) {
+        console.log('[Stream] Adding subtitles')
+        addSubtitleTrack(response.subtitleUrl)
+      } else {
+        console.log('[Stream] No subtitles in response')
+      }
+
+      videoPlayer.play()
+      showPlayerPage()
+      hideLoadingOverlay()
     } else {
-      console.log('[Stream] No subtitles in response')
+      throw new Error('Stream response was not successful')
     }
-    
-    videoPlayer.play()
-    showPlayerPage()
-    hideLoadingOverlay()
   } catch (error) {
     console.error("Stream failed to start:", error)
     hideLoadingOverlay()
     playBtn.disabled = false
+    stopBtn.classList.add("hidden")
     alert("Failed to start stream: " + error.message)
   }
 }
 
-// Stop streaming
+// ==================== STOP STREAM ====================
 async function stopStream() {
   console.log("Stopping stream!")
   await window.electronAPI.stopStream()
@@ -449,6 +618,7 @@ async function stopStream() {
   hideLoadingOverlay()
   videoPlayer.pause()
   videoPlayer.src = ""
+
   // Remove subtitle tracks
   const tracks = videoPlayer.querySelectorAll('track')
   tracks.forEach(track => track.remove())
