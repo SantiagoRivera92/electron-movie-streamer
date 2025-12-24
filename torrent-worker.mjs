@@ -121,7 +121,7 @@ async function start() {
       if (err.code === "EADDRINUSE") {
         console.error(`[torrent-worker] Port ${port} is already in use`)
         client.destroy()
-        process.exit(1)
+        process.exit(2)
       } else {
         console.error(`[torrent-worker] Server error:`, err)
       }
@@ -138,7 +138,7 @@ async function start() {
 
   client.on("error", (err) => {
     console.error("[torrent-worker] WebTorrent error:", err.message)
-    process.exit(1)
+    process.exit(3)
   })
 
   process.on("SIGTERM", () => {
@@ -154,5 +154,5 @@ async function start() {
 
 start().catch((err) => {
   console.error("Worker failed:", err)
-  process.exit(1)
+  process.exit(4)
 })
