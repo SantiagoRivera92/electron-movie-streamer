@@ -64,10 +64,12 @@ jobs:
         with:
           path: ./dist
 
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+  
       - name: Get version
         id: get_version
-        run: |
-          echo "version=$(jq -r .version package.json)" >> $GITHUB_OUTPUT
+        run: echo "version=$(jq -r .version package.json)" >> $GITHUB_OUTPUT
 
       - name: Create or update GitHub Release
         uses: softprops/action-gh-release@v2
