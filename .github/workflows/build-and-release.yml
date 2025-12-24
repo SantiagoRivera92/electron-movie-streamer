@@ -31,10 +31,15 @@ jobs:
       - name: Build distributables (Linux)
         if: runner.os == 'Linux'
         run: npx electron-builder --linux
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
 
       - name: Build distributables (Windows)
         if: runner.os == 'Windows'
         run: npm run dist
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
