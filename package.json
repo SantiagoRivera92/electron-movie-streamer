@@ -65,7 +65,6 @@
     "win": {
       "icon": "icon.png",
       "target": [
-        "nsis",
         "portable"
       ]
     },
@@ -81,12 +80,6 @@
       "category": "AudioVideo",
       "executableName": "movie-streamer",
       "artifactName": "${name}_${version}_${arch}.${ext}"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "shortcutName": "Movie Streamer"
     }
   }
 }

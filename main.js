@@ -191,24 +191,26 @@ ipcMain.handle('start-stream', async (event, { hash, title, useSubtitles, movieD
 
     let streamUrl = null;
 
-    webtorrentProcess.stderr.on('data', (data) => {
-      const errorMsg = data.toString();
-      console.error('[Worker Error]', errorMsg);
-      mainWindow.webContents.send('stream-progress', `ERROR: ${errorMsg}`);
-    });
-
-    webtorrentProcess.on('exit', (code, signal) => {
-      console.error(`[Worker Exit] Code: ${code}, Signal: ${signal}`);
-      if (code !== 0 && !streamUrl) {
-        reject(new Error(`Worker exited with code ${code}. Check if WebTorrent is properly installed.`));
-      }
-    });
-
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(async () => {
         await cleanup();
         reject(new Error('Timeout: Peers not found.'));
       }, 60000);
+
+      // Move stderr handler inside Promise
+      webtorrentProcess.stderr.on('data', (data) => {
+        const errorMsg = data.toString();
+        console.error('[Worker Error]', errorMsg);
+        mainWindow.webContents.send('stream-progress', `ERROR: ${errorMsg}`);
+      });
+
+      // Move exit handler inside Promise so reject is defined
+      webtorrentProcess.on('exit', (code, signal) => {
+        console.error(`[Worker Exit] Code: ${code}, Signal: ${signal}`);
+        if (code !== 0 && !streamUrl) {
+          reject(new Error(`Worker exited with code ${code}. Check if WebTorrent is properly installed.`));
+        }
+      });
 
       webtorrentProcess.stdout.on('data', (data) => {
         const output = data.toString();
@@ -226,10 +228,6 @@ ipcMain.handle('start-stream', async (event, { hash, title, useSubtitles, movieD
             });
           }
         }
-      });
-
-      webtorrentProcess.stderr.on('data', (data) => {
-        console.error('[Worker Error]', data.toString());
       });
 
       webtorrentProcess.on('close', (code) => {
