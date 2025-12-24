@@ -22,6 +22,15 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install Windows build tools
+        if: runner.os == 'Windows'
+        run: |
+          npm install -g windows-build-tools
+          choco install cmake -y
+          choco install python -y
+          choco install visualstudio2019buildtools -y
+        shell: pwsh
+        
       - name: Install dependencies
         run: npm install
 
