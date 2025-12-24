@@ -30,7 +30,7 @@ jobs:
           choco install python -y
           choco install visualstudio2019buildtools -y
         shell: pwsh
-        
+
       - name: Install dependencies
         run: npm install
 
@@ -42,7 +42,6 @@ jobs:
         run: npx electron-builder --linux
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-
 
       - name: Build distributables (Windows)
         if: runner.os == 'Windows'
