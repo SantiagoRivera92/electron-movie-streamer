@@ -28,13 +28,13 @@ jobs:
       - name: Rebuild native modules for Electron
         run: npx electron-rebuild
 
-      - name: Build distributables
-        run: |
-          if [[ "$RUNNER_OS" == "Linux" ]]; then
-            npm run dist-all
-          elif [[ "$RUNNER_OS" == "Windows" ]]; then
-            npm run dist
-          fi
+      - name: Build distributables (Linux)
+        if: runner.os == 'Linux'
+        run: npx electron-builder --linux
+
+      - name: Build distributables (Windows)
+        if: runner.os == 'Windows'
+        run: npm run dist
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
